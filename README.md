@@ -35,6 +35,7 @@ Example usage:
   MediaControl.iTunes.controlPlay();
 
   /* This will stop the module from listening to iTunes events */
+  /* You can still use the control*() functions to control iTunes */
   MediaControl.iTunes.ignore();
 
 ```

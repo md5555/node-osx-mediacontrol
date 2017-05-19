@@ -8,7 +8,7 @@
   "description": "Allows to monitor and control iTunes and Spotify from Node on macOS",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/md5555/node_osx_mediacontrol.git"
+    "url": "git+https://github.com/md5555/node-osx-mediacontrol.git"
   },
   "dependencies": {
     "node-abi": "2.0.0",
