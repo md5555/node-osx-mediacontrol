@@ -1,51 +1,40 @@
-## osxsleep
+## node-osx-mediacontrol
 
-osxsleep allows to monitor macOS device's sleep state from Node; additionally, you can query the current power source.
+This module allows to control iTunes and Spotify on macOS; it is possible to register a callback to be notified of the app's state.
+
+For now, only iTunes is implemented with the functionality: 
+
+    * Receive status updates (playback state changes)
+    * Control play, Control pause
 
 Example usage:
 
 ```sh
 
-  const osxsleep = require('osxsleep');
+  const MediaControl = require('node-osx-mediacontrol');
    
   ...
 
-  var source = osxsleep.OSXSleep.getPowerSource();
-
-  switch(source) {
-	case osxsleep.POWER_SOURCE_AC:
+  /* Registers to listen to iTunes events */
+  MediaControl.iTunes.observe(function(state) {
+    
+	switch (state) {
+	    case MediaControl.ITUNES_STOPPED:
+		/* do something */
 		break;
-	case osxsleep.POWER_SOURCE_BATTERY:
+	    case MediaControl.ITUNES_PLAYING;
+		/* do something */
 		break;
-	case osxsleep.POWER_SOURCE_UPS:
+	    case MediaControl.ITUNES_PAUSED:
+		/* do something */
 		break;
-  }
-
-  ...
- 
-  osxsleep.OSXSleep.start(function(sleepstate){
-
-	switch(sleepstate) {
-		case osxsleep.CAN_SLEEP:
-			if (/* can sleep */) {
-			    return true;
-			} else {
-			    return false;
-			}
-			break;
-		case osxsleep.WILL_SLEEP:
-			break;
-		case osxsleep.WILL_POWER_ON:
-			break;
-		case osxsleep.HAS_POWERED_ON:
-			break;
-	}
   });
 
-  ...
-  
-  osxsleep.OSXSleep.stop();
- 
-```
+  MediaControl.iTunes.controlPause();
 
-It is *important* to call stop() in order to unregister the native IOKit sleep state monitor & resources!
+  MediaControl.iTunes.controlPlay();
+
+  /* This will stop the module from listening to iTunes events */
+  MediaControl.iTunes.ignore();
+
+```

@@ -6,8 +6,8 @@
 #include <queue>
 
 #import <Foundation/Foundation.h>
-#import <objc/runtime.h>
 #import <ScriptingBridge/SBApplication.h>
+#import <objc/runtime.h>
  
 // node headers
 #include <v8.h>
@@ -18,7 +18,7 @@
 using namespace node;
 using namespace v8;
 
-@interface NotificationCallback : NSObject
+@interface iTunesNotificationCallback : NSObject
 
 - (void)startMonitor;
 - (void)stopMonitor;
@@ -26,17 +26,28 @@ using namespace v8;
 
 @end
 
-@implementation NotificationCallback
+namespace iTunes {
+    Persistent<Function> * callback = nil;
+    iTunesNotificationCallback * noti = nil;
 
-Persistent<Function> * callback = 0;
+    void runOnMainQueueWithoutDeadlocking(void (^block)(void)) {
 
-+(id)newNotificationCallback {
-    NSLog(@"Created iTunes Observer");
-    return [[super alloc] init];
+	if ([NSThread isMainThread])
+	{
+	    block();
+	}
+	else
+	{
+	    dispatch_sync(dispatch_get_main_queue(), block);
+	}
+    }
 }
 
--(void)dealloc {
-    [super dealloc];
+@implementation iTunesNotificationCallback
+
++(id)newiTunesNotificationCallback {
+    NSLog(@"Created iTunes Observer");
+    return [[super alloc] init];
 }
 
 - (void)stopMonitor {
@@ -62,19 +73,17 @@ Persistent<Function> * callback = 0;
 		selector: @selector(callbackWithNotification:)
 		name: observed 
 		object: nil];
+
+    [self pushItunesState];
 }
 
-- (void)callbackWithNotification:(NSNotification *)myNotification {
+- (void) pushItunesState {
 
     iTunesApplication *iTunes = (iTunesApplication*)[SBApplication applicationWithBundleIdentifier:@"com.apple.iTunes"];
-
     iTunesEPlS state = [iTunes playerState]; 
-
     NSLog(@"Got iTunes state: %i", state);
 
-    [iTunes release];
-
-    if (!callback) {
+    if (!iTunes::callback) {
 	return;
     }
 
@@ -85,48 +94,73 @@ Persistent<Function> * callback = 0;
     argv[0] = Integer::New(Isolate::GetCurrent(), (int)state);
  
     // call the callback and handle possible exception
-    callback->Get(Isolate::GetCurrent())->Call(v8::Object::New(Isolate::GetCurrent()), 1, argv);
+    iTunes::callback->Get(Isolate::GetCurrent())->Call(v8::Object::New(Isolate::GetCurrent()), 1, argv);
  
     if (try_catch.HasCaught()) {
         FatalException(Isolate::GetCurrent(), try_catch);
     }
 }
 
+- (void)callbackWithNotification:(NSNotification *)myNotification {
+
+    iTunes::runOnMainQueueWithoutDeadlocking(^{
+	[self pushItunesState];
+    });
+}
+
 @end
 
-NotificationCallback * noti;
+static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
-void Stop(const v8::FunctionCallbackInfo<v8::Value>& args) {
-
-    if (!noti) {
+    if (!iTunes::noti) {
 	return;
     } 
 
-    [noti stopMonitor];
-    [noti release];
+    [iTunes::noti stopMonitor];
+    iTunes::noti = nil;
 }
 
-void Start(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void Start(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     Local<Function> cb = Local<Function>::Cast(args[0]);
-    callback = new Persistent<Function>(Isolate::GetCurrent(), cb);
+    iTunes::callback = new Persistent<Function>(Isolate::GetCurrent(), cb);
 
-    noti = [NotificationCallback newNotificationCallback];
-
-    [noti startMonitor];
-
-    CFRunLoopRun();
+    iTunes::noti = [iTunesNotificationCallback newiTunesNotificationCallback];
+    [iTunes::noti startMonitor];
 } 
 
-Handle<Value> Initialize(Handle<Object> target)
-{
-    target->Set(String::NewFromUtf8(Isolate::GetCurrent(), "observe"),
-        FunctionTemplate::New(Isolate::GetCurrent(), Start)->GetFunction());
+static void CtrlPause(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
-    target->Set(String::NewFromUtf8(Isolate::GetCurrent(), "ignore"),
-        FunctionTemplate::New(Isolate::GetCurrent(), Stop)->GetFunction());
+    iTunesApplication *iTunes = (iTunesApplication*)[SBApplication applicationWithBundleIdentifier:@"com.apple.iTunes"];
 
-    return True(Isolate::GetCurrent());
+    [iTunes pause];
 }
 
-NODE_MODULE(node_itunes, Initialize);
+static void CtrlPlay(const v8::FunctionCallbackInfo<v8::Value>& args) {
+
+    iTunesApplication *iTunes = (iTunesApplication*)[SBApplication applicationWithBundleIdentifier:@"com.apple.iTunes"];
+
+    [iTunes playpause];
+}
+
+
+namespace McItunes {
+    Handle<Value> Initialize(Handle<Object> target)
+    {
+	target->Set(String::NewFromUtf8(Isolate::GetCurrent(), "observe"),
+	    FunctionTemplate::New(Isolate::GetCurrent(), Start)->GetFunction());
+
+	target->Set(String::NewFromUtf8(Isolate::GetCurrent(), "ignore"),
+	    FunctionTemplate::New(Isolate::GetCurrent(), Stop)->GetFunction());
+
+	target->Set(String::NewFromUtf8(Isolate::GetCurrent(), "controlPause"),
+	    FunctionTemplate::New(Isolate::GetCurrent(), CtrlPlay)->GetFunction());
+
+	target->Set(String::NewFromUtf8(Isolate::GetCurrent(), "controlPlay"),
+	    FunctionTemplate::New(Isolate::GetCurrent(), CtrlPlay)->GetFunction());
+
+	return True(Isolate::GetCurrent());
+    }
+}
+
+NODE_MODULE(node_osx_mediacontrol_itunes, McItunes::Initialize);

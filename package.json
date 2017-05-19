@@ -1,14 +1,14 @@
 {
-  "name": "node-itunes",
+  "name": "node-osx-mediacontrol",
   "version": "0.0.1",
   "author": {
     "name": "Milosz Derezynski",
     "email": "mderezynski@gmail.com"
   },
-  "description": "Allows to monitor iTunes from Node",
+  "description": "Allows to monitor and control iTunes and Spotify from Node on macOS",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/md5555/node_itunes.git"
+    "url": "git+https://github.com/md5555/node_osx_mediacontrol.git"
   },
   "dependencies": {
     "node-abi": "2.0.0",

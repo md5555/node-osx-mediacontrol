@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-       "target_name": "node-itunes",
+       "target_name": "node-osx-mediacontrol-itunes",
 
        "sources": [ "iTunes.h", "itunes.mm" ],
 
